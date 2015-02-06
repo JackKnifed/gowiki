@@ -4,6 +4,8 @@ import (
 	"flag"
 	"html/template"
 	"io/ioutil"
+	"log"
+	"net"
 	"net/http"
 	"regexp"
 )
@@ -11,6 +13,10 @@ import (
 var templates = template.Must(template.ParseFiles("edit.html", "view.html"))
 
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+
+var (
+	addr = flag.Bool("addr", false, "find open address and print to final-port.txt")
+)
 
 type Page struct {
 	Title string
@@ -51,21 +57,12 @@ func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 	body := r.FormValue("body")
 	p := &Page{Title: title, Body: []byte(body)}
-	err = p.save()
+	err := p.save()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, "/view/"+title, http.StatusFound)
-}
-
-func getTitle(w http.ResponseWriter, r *http.Request) (string, error) {
-	m := validPath.FindStringSubmatch(r.URL.Path)
-	if m == nil {
-		http.NotFound(w, r)
-		return "", errors.New("Invalid Page Title")
-	}
-	return m[2], nil // The title is the second subexpression.
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
